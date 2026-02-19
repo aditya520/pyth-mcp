@@ -579,6 +579,12 @@ Same tracking schema as v1, plus:
 
 ---
 
+## v1.2 — Auto-Update Key Types (TBD)
+
+Automatically fetch and update key data types (Channel, AssetType, MarketSession, PriceFeedProperty, etc.) from the live server rather than hardcoding them. Details to be determined.
+
+---
+
 ## v2 — Shared Trial Token (Summary)
 
 - Server holds a `PYTH_PRO_SERVER_TOKEN` (env var, never exposed to clients)
@@ -638,57 +644,6 @@ PYTH_PRO_ACCESS_TOKEN=your_token npx @pyth-network/mcp-server stdio
 
 ---
 
-## Implementation Order (Build Sequence)
-
-### Phase 1: Foundation (Days 1-2)
-1. **Project scaffold** — `npm init`, tsconfig, eslint, vitest, directory structure
-2. **`src/config.ts`** — env var parsing, CLI flag setup (use `commander` or `yargs`), defaults
-3. **`src/utils/logger.ts`** — structured JSON logger (pino or custom)
-4. **`src/utils/errors.ts`** — error types: `PythAuthError`, `PythAPIError`, `PythValidationError`
-
-### Phase 2: API Clients (Days 2-3)
-5. **`src/clients/types.ts`** — TypeScript types from OpenAPI specs (SymbolResponse, PriceResponse, OHLCResponse, ParsedPayload, etc.)
-6. **`src/clients/history.ts`** — History API client: `getSymbols()`, `getCandlestickData()`, `getHistoricalPrice()`, `resolveSymbol()`, `getConfig()`
-7. **`src/clients/router.ts`** — Router API client: `getLatestPrice()`, `getHistoricalPriceAtTimestamp()`. Bearer token injection.
-8. **Unit tests for both clients** — mock HTTP with `msw` or `nock`
-
-### Phase 3: MCP Server + Tools (Days 3-5)
-9. **`src/server.ts`** — MCP server creation using `@modelcontextprotocol/sdk`. Register capabilities (tools, resources, prompts).
-10. **`src/middleware/auth.ts`** — extract token from config, inject into context. Graceful degradation logic.
-11. **`src/middleware/logging.ts`** — tracking schema implementation, wrap tool handlers
-12. **`src/utils/channel.ts`** — channel resolution: config default → per-request override → validate against feed min_channel
-13. **`src/tools/get-symbols.ts`** — first tool, simplest, no auth needed. Validates full pipeline.
-14. **`src/tools/get-candlestick-data.ts`** — OHLC candlestick data
-15. **`src/tools/get-historical-price.ts`** — historical price by feed ID + timestamp
-16. **`src/tools/get-latest-price.ts`** — first tool requiring auth. Tests graceful degradation.
-17. **`src/tools/index.ts`** — registry exporting all tools
-
-### Phase 4: Resources (Days 5-6)
-18. **`content/*.md`** — write static content: integration guide, chains, payload schema, error codes
-19. **`src/resources/feeds.ts`** — dynamic feed catalog resource with 1-day caching
-20. **`src/resources/schema.ts`** — static schema resources (payload, errors, OpenAPI)
-21. **`src/resources/docs.ts`** — static doc resources (integration guide, chains)
-22. **`src/resources/tradingview.ts`** — TradingView config resource
-
-### Phase 5: Prompts (Day 6)
-23. **`src/prompts/market-snapshot.ts`**
-24. **`src/prompts/price-analysis.ts`**
-25. **`src/prompts/setup-pyth-pro.ts`**
-
-### Phase 6: Entry Point + Transport (Days 6-7)
-26. **`src/index.ts`** — CLI with `stdio` and `http` subcommands
-27. **Stdio transport** — wire up MCP SDK's stdio transport
-28. **HTTP transport** — wire up MCP SDK's HTTP transport with auth header extraction
-29. **`.env.example`**, **`README.md`**, **`package.json`** (bin, scripts, publish config)
-
-### Phase 7: Testing + Polish (Days 7-8)
-30. **Integration tests** — start server in stdio, send JSON-RPC, validate
-31. **E2E tests** — real API calls with `PYTH_PRO_E2E_TOKEN`
-32. **Manual smoke test** — Claude Desktop integration
-33. **npm publish dry run** — verify package works via `npx`
-
----
-
 ## Decision Log
 
 All architectural decisions made during the brainstorming session, with rationale:
@@ -712,112 +667,3 @@ All architectural decisions made during the brainstorming session, with rational
 | 15 | Observability | Minimal / Analytics / Full | **Full observability** | 20+ fields per invocation. Structured JSON logs for Grafana/Loki. Tracks usage analytics + operational health. |
 | 16 | Package name | @pyth-network/mcp-server / pyth-pro-mcp-server | **@pyth-network/mcp-server** | Scoped under Pyth npm org. Clean, professional, discoverable. |
 
----
-
-## API Quick Reference
-
-### Router API (requires bearer token)
-
-**Base URL:** `https://pyth-lazer.dourolabs.app`
-**OpenAPI:** `https://pyth-lazer-0.dourolabs.app/docs/openapi.json`
-**Interactive docs:** `https://pyth-lazer-0.dourolabs.app/docs`
-**Auth:** `Authorization: Bearer <PYTH_PRO_ACCESS_TOKEN>`
-
-#### `POST /v1/latest_price`
-```bash
-curl -X POST https://pyth-lazer.dourolabs.app/v1/latest_price \
-  -H "Authorization: Bearer $PYTH_PRO_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "fixed_rate@200ms",
-    "formats": ["leUnsigned"],
-    "properties": ["price", "bestBidPrice", "bestAskPrice", "confidence", "exponent", "publisherCount"],
-    "symbols": ["BTC/USD", "ETH/USD"],
-    "parsed": true
-  }'
-```
-**Response:** `{ parsed: { timestampUs, priceFeeds: [{ priceFeedId, price, confidence, bestBidPrice, bestAskPrice, exponent, publisherCount, marketSession }] } }`
-**Errors:** 400 (bad request), 403 (forbidden)
-
-#### `POST /v1/price`
-Same as above, plus `"timestamp": 1704067200000000` (microseconds).
-**Additional error:** 404 (no data at timestamp)
-
----
-
-### History API (mostly public)
-
-**Base URL:** `https://history.pyth-lazer.dourolabs.app`
-**OpenAPI:** `https://history.pyth-lazer.dourolabs.app/docs/v1/openapi.json`
-**Interactive docs:** `https://history.pyth-lazer.dourolabs.app/docs`
-**Auth:** None for public endpoints
-
-#### `GET /symbols`
-```bash
-# All feeds
-curl "https://history.pyth-lazer.dourolabs.app/v1/symbols"
-
-# Filtered by asset type
-curl "https://history.pyth-lazer.dourolabs.app/v1/symbols?asset_type=crypto"
-
-# Search by name
-curl "https://history.pyth-lazer.dourolabs.app/v1/symbols?query=BTC"
-```
-**Response:** `[{ pyth_lazer_id, name, symbol, description, asset_type, exponent, min_publishers, min_channel, state, hermes_id, quote_currency, ... }]`
-**Asset types:** `crypto`, `fx`, `equity`, `metal`, `rates`, `nav`, `commodity`, `funding-rate`, `eco`, `kalshi`
-
-#### `GET /{channel}/history`
-```bash
-curl "https://history.pyth-lazer.dourolabs.app/v1/fixed_rate@200ms/history?symbol=BTC/USD&from=1704067200&to=1704153600&resolution=D"
-```
-**Response:** `{ s: "ok", t: [1704067200], o: [42000.5], h: [43100.2], l: [41800.0], c: [42950.3], v: [0] }`
-**Resolutions:** `1`, `2`, `5`, `15`, `30`, `60`, `120`, `240`, `360`, `720`, `D`, `1D`, `W`, `1W`, `M`, `1M`
-**Errors:** 400 (invalid channel), 404 (symbol not found)
-
-#### `GET /{channel}/price`
-```bash
-curl "https://history.pyth-lazer.dourolabs.app/v1/fixed_rate@200ms/price?ids=1,2&timestamp=1704067200000000"
-```
-**Response:** `[{ price_feed_id, publish_time, channel, price, best_bid_price, best_ask_price, confidence, exponent, publisher_count }]`
-**Note:** Timestamp is in **microseconds**
-
-#### `GET /{channel}/symbols`
-```bash
-curl "https://history.pyth-lazer.dourolabs.app/v1/fixed_rate@200ms/symbols?symbol=BTC/USD"
-```
-**Response:** Full TradingView-compatible symbol metadata
-
-#### `GET /{channel}/search`
-```bash
-curl "https://history.pyth-lazer.dourolabs.app/v1/fixed_rate@200ms/search?query=BTC&type=crypto&exchange=PYTH&limit=15"
-```
-
-#### `GET /{channel}/config`
-```bash
-curl "https://history.pyth-lazer.dourolabs.app/v1/fixed_rate@200ms/config"
-```
-**Response:** `{ supported_resolutions: [...], supports_search: true, ... }`
-
----
-
-### Key Data Types
-
-```typescript
-// Price calculation: decimal_price = price * 10^exponent
-// Example: price=4250050, exponent=-2 → $42,500.50
-
-// Channels
-type Channel = "real_time" | "fixed_rate@50ms" | "fixed_rate@200ms" | "fixed_rate@1000ms";
-
-// Asset types
-type AssetType = "crypto" | "fx" | "equity" | "metal" | "rates" | "nav" | "commodity" | "funding-rate";
-
-// Market session
-type MarketSession = "regular" | "preMarket" | "postMarket" | "overNight" | "closed";
-
-// Price feed properties (what you can request)
-type PriceFeedProperty = "price" | "bestBidPrice" | "bestAskPrice" | "publisherCount"
-  | "exponent" | "confidence" | "fundingRate" | "fundingTimestamp"
-  | "fundingRateInterval" | "marketSession" | "emaPrice" | "emaConfidence"
-  | "feedUpdateTimestamp";
-```
