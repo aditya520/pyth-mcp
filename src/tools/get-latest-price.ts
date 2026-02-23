@@ -15,7 +15,7 @@ const GetLatestPriceInput = z.object({
     .array(z.string())
     .max(100)
     .optional()
-    .describe("Symbol names (e.g. ['BTC/USD', 'ETH/USD'])"),
+    .describe("Full symbol names from get_symbols including asset type prefix (e.g. ['Crypto.BTC/USD', 'Equity.US.AAPL/USD'])"),
   price_feed_ids: z
     .array(z.coerce.number().int().positive())
     .max(100)
@@ -44,7 +44,7 @@ export function registerGetLatestPrice(
     "get_latest_price",
     {
       description:
-        "Get the most recent real-time price for one or more feeds. Requires an `access_token` parameter (get one at https://docs.pyth.network/price-feeds/pro/acquire-access-token). Use get_symbols first to find symbols or feed IDs. Prices are integers with an exponent field — human-readable price = price * 10^exponent. Pre-computed display_price fields are included for convenience.",
+        "Get the most recent real-time price for one or more feeds. Requires an `access_token` parameter (get one at https://docs.pyth.network/price-feeds/pro/acquire-access-token). Use get_symbols first to find symbols or feed IDs. IMPORTANT: symbols must be the full name including asset type prefix (e.g. 'Crypto.BTC/USD', not 'BTC/USD'). Prices are integers with an exponent field — human-readable price = price * 10^exponent. Pre-computed display_price fields are included for convenience.",
       inputSchema: GetLatestPriceInput,
       annotations: { readOnlyHint: true, destructiveHint: false },
     },

@@ -27,21 +27,21 @@ const mockFeeds = [
 ];
 
 const mockLatestPrice = {
-  parsed: [
-    {
-      price_feed_id: 1,
-      timestamp_us: 1708300800000000,
-      channel: "fixed_rate@200ms",
-      price: 9742350000000,
-      best_bid_price: 9742340000000,
-      best_ask_price: 9742360000000,
-      confidence: 100000,
-      exponent: -8,
-      publisher_count: 5,
-      evm: "0xdeadbeef",
-      solana: "base64data",
-    },
-  ],
+  parsed: {
+    timestampUs: "1708300800000000",
+    priceFeeds: [
+      {
+        priceFeedId: 1,
+        price: "9742350000000",
+        bestBidPrice: "9742340000000",
+        bestAskPrice: "9742360000000",
+        confidence: "100000",
+        exponent: -8,
+        publisherCount: 5,
+      },
+    ],
+  },
+  leUnsigned: { encoding: "base64", data: "deadbeef" },
 };
 
 const msw = setupServer(

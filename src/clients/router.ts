@@ -1,8 +1,17 @@
 import type pino from "pino";
 import type { Config } from "../config.js";
 import type { LatestPriceParsedFeed } from "./types.js";
-import { BINARY_PAYLOAD_FIELDS, LatestPriceResponseSchema } from "./types.js";
+import { LatestPriceResponseSchema } from "./types.js";
 import { HttpError, withRetry, parseRetryAfter } from "./retry.js";
+
+const DEFAULT_PROPERTIES = [
+  "price",
+  "bestBidPrice",
+  "bestAskPrice",
+  "exponent",
+  "publisherCount",
+  "confidence",
+];
 
 export class RouterClient {
   private readonly baseUrl: string;
@@ -25,10 +34,12 @@ export class RouterClient {
   ): Promise<LatestPriceParsedFeed[]> {
     const url = new URL("/v1/latest_price", this.baseUrl);
 
-    const body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = {
+      properties: properties?.length ? properties : DEFAULT_PROPERTIES,
+      formats: ["leUnsigned"],
+    };
     if (symbols?.length) body.symbols = symbols;
-    if (priceFeedIds?.length) body.price_feed_ids = priceFeedIds;
-    if (properties?.length) body.properties = properties;
+    if (priceFeedIds?.length) body.priceFeedIds = priceFeedIds;
     if (channel) body.channel = channel;
 
     return withRetry(async () => {
@@ -53,19 +64,32 @@ export class RouterClient {
 
       const json: unknown = await res.json();
       const data = LatestPriceResponseSchema.parse(json);
-      return stripBinaryFields(data.parsed);
+      return normalizeFeeds(data.parsed);
     });
   }
 }
 
-function stripBinaryFields(
-  feeds: LatestPriceParsedFeed[],
-): LatestPriceParsedFeed[] {
-  return feeds.map((feed) => {
-    const cleaned = { ...feed };
-    for (const field of BINARY_PAYLOAD_FIELDS) {
-      delete (cleaned as Record<string, unknown>)[field];
-    }
-    return cleaned;
+/** Convert camelCase API response to snake_case internal format with numeric values */
+function normalizeFeeds(parsed: {
+  timestampUs: string | number;
+  priceFeeds: Array<Record<string, unknown>>;
+}): LatestPriceParsedFeed[] {
+  const timestampUs =
+    typeof parsed.timestampUs === "string"
+      ? Number(parsed.timestampUs)
+      : parsed.timestampUs;
+
+  return parsed.priceFeeds.map((raw) => {
+    const feed: LatestPriceParsedFeed = {
+      price_feed_id: raw.priceFeedId as number,
+      timestamp_us: timestampUs,
+    };
+    if (raw.price != null) feed.price = Number(raw.price);
+    if (raw.bestBidPrice != null) feed.best_bid_price = Number(raw.bestBidPrice);
+    if (raw.bestAskPrice != null) feed.best_ask_price = Number(raw.bestAskPrice);
+    if (raw.confidence != null) feed.confidence = Number(raw.confidence);
+    if (raw.exponent != null) feed.exponent = raw.exponent as number;
+    if (raw.publisherCount != null) feed.publisher_count = raw.publisherCount as number;
+    return feed;
   });
 }

@@ -82,16 +82,17 @@ const msw = setupServer(
   ),
   http.post(`${ROUTER_URL}/v1/latest_price`, () =>
     HttpResponse.json({
-      parsed: [
-        {
-          price_feed_id: 1,
-          timestamp_us: 1708300800000000,
-          channel: "fixed_rate@200ms",
-          price: 5200000000000,
-          exponent: -8,
-          evm: "0x...",
-        },
-      ],
+      parsed: {
+        timestampUs: "1708300800000000",
+        priceFeeds: [
+          {
+            priceFeedId: 1,
+            price: "5200000000000",
+            exponent: -8,
+          },
+        ],
+      },
+      leUnsigned: { encoding: "base64", data: "deadbeef" },
     }),
   ),
 );

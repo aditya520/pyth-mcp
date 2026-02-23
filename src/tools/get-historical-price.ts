@@ -20,7 +20,7 @@ const GetHistoricalPriceInput = z.object({
     .array(z.string())
     .max(50)
     .optional()
-    .describe("Symbol names (e.g. ['BTC/USD', 'ETH/USD'])"),
+    .describe("Full symbol names from get_symbols including asset type prefix (e.g. ['Crypto.BTC/USD', 'Equity.US.AAPL/USD'])"),
   timestamp: z
     .coerce.number()
     .positive()

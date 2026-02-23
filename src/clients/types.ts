@@ -46,11 +46,31 @@ export const HistoricalPriceArraySchema = z.array(
   HistoricalPriceResponseSchema,
 );
 
+/** Raw feed shape from Router API (camelCase, string numbers) */
+export const LatestPriceRawFeedSchema = z
+  .object({
+    priceFeedId: z.number(),
+    price: z.union([z.string(), z.number()]).optional(),
+    bestBidPrice: z.union([z.string(), z.number()]).optional(),
+    bestAskPrice: z.union([z.string(), z.number()]).optional(),
+    confidence: z.union([z.string(), z.number()]).optional(),
+    exponent: z.number().optional(),
+    publisherCount: z.number().optional(),
+  })
+  .passthrough();
+
+export const LatestPriceResponseSchema = z.object({
+  parsed: z.object({
+    timestampUs: z.union([z.string(), z.number()]),
+    priceFeeds: z.array(LatestPriceRawFeedSchema),
+  }),
+});
+
+/** Normalized feed shape used internally (snake_case, numeric values) */
 export const LatestPriceParsedFeedSchema = z
   .object({
     price_feed_id: z.number(),
     timestamp_us: z.number(),
-    channel: z.string(),
     price: z.number().optional(),
     best_bid_price: z.number().optional(),
     best_ask_price: z.number().optional(),
@@ -59,10 +79,6 @@ export const LatestPriceParsedFeedSchema = z
     publisher_count: z.number().optional(),
   })
   .passthrough();
-
-export const LatestPriceResponseSchema = z.object({
-  parsed: z.array(LatestPriceParsedFeedSchema),
-});
 
 // --- Inferred Types ---
 
@@ -74,10 +90,3 @@ export type HistoricalPriceResponse = z.infer<
 export type LatestPriceParsedFeed = z.infer<typeof LatestPriceParsedFeedSchema>;
 export type LatestPriceResponse = z.infer<typeof LatestPriceResponseSchema>;
 
-/** Binary fields to strip from router API responses */
-export const BINARY_PAYLOAD_FIELDS = [
-  "evm",
-  "solana",
-  "leUnsigned",
-  "leSigned",
-] as const;
