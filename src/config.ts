@@ -1,0 +1,29 @@
+import { z } from "zod";
+
+const ConfigSchema = z.object({
+  channel: z.string().default("fixed_rate@200ms"),
+  routerUrl: z
+    .string()
+    .url()
+    .default("https://pyth-lazer.dourolabs.app")
+    .refine((u) => u.startsWith("https://"), "URL must use HTTPS"),
+  historyUrl: z
+    .string()
+    .url()
+    .default("https://history.pyth-lazer.dourolabs.app")
+    .refine((u) => u.startsWith("https://"), "URL must use HTTPS"),
+  logLevel: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  requestTimeoutMs: z.coerce.number().int().positive().default(10_000),
+});
+
+export type Config = z.infer<typeof ConfigSchema>;
+
+export function loadConfig(): Config {
+  return ConfigSchema.parse({
+    channel: process.env.PYTH_CHANNEL,
+    routerUrl: process.env.PYTH_ROUTER_URL,
+    historyUrl: process.env.PYTH_HISTORY_URL,
+    logLevel: process.env.PYTH_LOG_LEVEL,
+    requestTimeoutMs: process.env.PYTH_REQUEST_TIMEOUT_MS,
+  });
+}

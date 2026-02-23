@@ -183,6 +183,8 @@ process.on("SIGINT", cleanup);
 |------|------|----------|-------------|
 | `query` | string | No | Text filter (e.g. "BTC", "gold", "AAPL") |
 | `asset_type` | string | No | Filter: `crypto`, `fx`, `equity`, `metal`, `rates`, `commodity`, `funding-rate` |
+| `offset` | number | No | Pagination offset (default 0) |
+| `limit` | number | No | Results per page (default 50, max 200) |
 
 **Returns:** Array of `{ pyth_lazer_id, name, symbol, description, asset_type, exponent, min_channel, state, hermes_id, quote_currency }`
 
@@ -226,13 +228,16 @@ process.on("SIGINT", cleanup);
 **Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `ids` | number[] | Yes | Price feed IDs |
-| `timestamp` | number | Yes | Unix timestamp in **microseconds** |
+| `ids` | number[] | No* | Price feed IDs |
+| `symbols` | string[] | No* | Symbol names (e.g. ["BTC/USD"]) — resolved to IDs internally |
+| `timestamp` | number | Yes | Unix timestamp in **seconds or milliseconds** (auto-detected by magnitude; converted to microseconds internally) |
 | `channel` | string | No | Override default channel |
+
+*At least one of `ids` or `symbols` required.
 
 **Returns:** All fields from the API response for each feed (e.g. `price_feed_id`, `publish_time`, `channel`, `price`, `best_bid_price`, `best_ask_price`, `confidence`, `exponent`, `publisher_count`, and any additional fields present).
 
-**LLM description:** *"Get price data for specific feeds at a historical timestamp. Use get_symbols first to find feed IDs. Timestamp is in microseconds (Unix seconds * 1,000,000)."*
+**LLM description:** *"Get price data for specific feeds at a historical timestamp. Use get_symbols first to find feed IDs or symbols. Accepts Unix seconds or milliseconds (auto-detected). Prices are integers with an exponent field — human-readable price = price * 10^exponent."*
 
 ---
 
@@ -368,7 +373,7 @@ interface ToolInvocationLog {
 
   // Auth
   has_token: boolean;          // Whether Pro token was provided
-  token_prefix: string;        // First 8 chars for debugging (never full token)
+  token_hash: string;          // SHA-256 of token, truncated to 8 hex chars (never raw prefix)
 
   // Response
   status: "success" | "error";
@@ -387,7 +392,7 @@ interface ToolInvocationLog {
 }
 ```
 
-**Destination:** Structured JSON to stdout (stdio mode) or structured logger (HTTP mode). Designed for ingestion into Grafana/Loki/CloudWatch.
+**Destination:** Structured JSON to **stderr** (all modes). Never stdout in stdio mode — it corrupts JSON-RPC. Designed for ingestion into Grafana/Loki/CloudWatch.
 
 ---
 
@@ -464,6 +469,7 @@ interface ToolInvocationLog {
 | `PYTH_HISTORY_URL` | `--history-url` | `https://history.pyth-lazer.dourolabs.app` | History API base URL |
 | `PYTH_LOG_LEVEL` | `--log-level` | `info` | Log level: debug, info, warn, error |
 | `PYTH_LOG_FILE` | `--log-file` | stderr | Log output file (stdio mode logs to stderr to avoid polluting JSON-RPC) |
+| `PYTH_REQUEST_TIMEOUT_MS` | `--timeout` | `10000` | HTTP request timeout in milliseconds |
 | `PORT` | `--port` | `8080` | HTTP server port |
 
 **CLI commands:**
