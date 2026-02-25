@@ -227,6 +227,38 @@ Restart Claude Desktop after saving. The Pyth tools will appear in the tool pick
 
 ---
 
+## Agent Skills
+
+[Agent Skills](https://agentskills.io) teach AI assistants how to compose the MCP tools into effective workflows. Each skill is a folder under `skills/` with a `SKILL.md` file that agents load on demand. Skills follow the open [Agent Skills standard](https://agentskills.io/specification) and work with Claude Code, Cursor, VS Code, Gemini CLI, OpenAI Codex, and [30+ other compatible agents](https://agentskills.io).
+
+| Skill | Description |
+|-------|-------------|
+| `pyth-price-lookup` | Feed discovery, real-time prices, and historical price lookups |
+| `pyth-market-analysis` | OHLC candlestick data for charting, trends, and asset comparisons |
+| `pyth-feed-explorer` | Browse the feed catalog by asset type, paginate, and access bulk resources |
+
+### Installing skills in Claude Code
+
+```bash
+claude install-skill https://github.com/aditya520/pyth-mcp/tree/main/skills/pyth-price-lookup
+claude install-skill https://github.com/aditya520/pyth-mcp/tree/main/skills/pyth-market-analysis
+claude install-skill https://github.com/aditya520/pyth-mcp/tree/main/skills/pyth-feed-explorer
+```
+
+Once installed, just ask Claude naturally — "What's the price of BTC?", "Show me gold candles for the last week", "What equity feeds does Pyth have?" — and it will activate the right skill automatically.
+
+### Installing skills in Claude.ai
+
+1. Download the `SKILL.md` file from the skill folder you want (e.g. `skills/pyth-price-lookup/SKILL.md`)
+2. Go to **Claude.ai → Settings → Skills**
+3. Upload the `SKILL.md` file
+
+See [Using skills in Claude](https://support.anthropic.com/en/articles/12512180-using-skills-in-claude) for details.
+
+### Installing skills in other agents
+
+Any agent that supports the [Agent Skills standard](https://agentskills.io) can use these skills. Copy the `skills/` directory into your project or point your agent's skill discovery path at it. The agent will read the `name` and `description` from each `SKILL.md` frontmatter and activate skills automatically based on user requests.
+
 ## Development
 
 ```bash
